@@ -46,7 +46,7 @@ router.post('/unsubcribe', function(req, res, next) {
 router.post('/order/cancel', function(req, res, next) {
 	let pair = req.body.pair;
 	let orderId = req.body.orderId;
-	binance.cancel("ETHBTC", orderid, (error, response, symbol) => {
+	binance.cancel(pair, orderid, (error, response, symbol) => {
 	  console.log(symbol+" cancel response:", response);
 	  if(error) {
 		  res.end('NG');
@@ -60,13 +60,34 @@ router.post('/order/cancel', function(req, res, next) {
 	});
 });
 
-router.post('/autotrade', function(req, res, next) {
+router.post('/order/update', function(req, res, next) {
+	let pair = req.body.pair;
+	let orderId = req.body.orderId;
+	binance.cancel(pair, orderid, (error, response, symbol) => {
+		console.log(symbol+" cancel response:", response);
+		if(error) {
+		  res.end('NG');
+		}
+	  
+	let type = "STOP_LOSS_LIMIT";
+	let quantity = req.body.amount;
+	let price = req.body.stopPrice;
+	let stopPrice = req.body.stopPrice;
+	binance.sell(pair, quantity, price, {stopPrice: stopPrice, type: type});
+	res.end('OK');
+
+	});
+});
+
+router.post('/autotrade', async function(req, res, next) {
 
 	let key = req.body.coin;
 	if(listCoin[key]) {
+		let pair = req.body.pair;
+		let orderHist
 		listCoin[key].isTrade = true;
-		listCoin[key].stopLoss = req.body.percentStopLost;
-		listCoin[key].pair = req.body.pair;
+		listCoin[key].stopLoss = req.body.percentStopLoss;
+		listCoin[key].pair = pair;
 		if(currentPriceMap.has(key + 'BTC') || currentPriceMap.has(key + 'ETH')) {
 			console.log('Delete current pair to update new pair');
 			if(!currentPriceMap.delete(key + 'BTC')) {
@@ -82,14 +103,39 @@ router.post('/autotrade', function(req, res, next) {
 	}
 });
 
+router.get('/test', async function(req, res, next) {
+
+	binance.allOrders("AIONETH", (error, orders, symbol) => {
+  console.log(symbol+" orders:", orders);
+});
+	res.end('OK');
+});
+
 function getOpenOrders() {
 	return new Promise(resolve => {
 		binance.openOrders(false, (error, openOrders) => {
-		resolve(openOrders);
-	});
+			resolve(openOrders);
+		});
 	});
 }
 
+function getLatestBuyOrder(pair) {
+	return new Promise(resolve => {
+		binance.allOrders(pair, (error, orders, symbol) => {
+			console.log(symbol+" orders:", orders);
+			let latestPrice;
+			orders.forEach((item) => {
+				if(item.side === 'BUY' && item.status === 'FILLED') {
+					latestPrice = item.price;
+				}
+			});
+		});
+	});
+	binance.allOrders(pair, (error, orders, symbol) => {
+			console.log(symbol+" orders:", orders);
+			
+		});
+}
 function getBalance() {
 	return new Promise(resolve => {
 		binance.balance((error, balances) => {
@@ -105,7 +151,7 @@ function subcribeCoin(pair) {
 		const last = chart[tick].close;;
 		currentPriceMap.set(symbol, last);
 		console.log("Current price map", currentPriceMap);
-		var json = JSON.stringify({ type:'message', pair: pair, price:last });
+		let json = JSON.stringify({ type:'message', pair: pair, price:last });
 		if(websocket) {
 			websocket.send(json);
 		}
@@ -121,7 +167,7 @@ function updateWebsocket() {
 	for ( let endpoint in endpoints ) {
 		binance.websockets.terminate(endpoint);
 	}
-	for(var key in listCoin) {
+	for(let key in listCoin) {
 		if(listCoin[key].isTrade) {
 			subcribeCoin(listCoin[key].pair);
 		}

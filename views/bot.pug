@@ -41,7 +41,9 @@ body
 							else
 								normal NORMAL_ORDER
 						td=item.origQty
-						<td><button name="Cancel" value="Cancel" onclick="cancelOrder('#{item.symbol}', '#{item.orderId}')"> Cancel</button>
+						input(type='hidden' id='amountUpdateSl'+item.symbol value=item.origQty)
+						<td><button onclick="cancelOrder('#{item.symbol}', '#{item.orderId}')"> Cancel</button>
+							<button onclick="updateOrder('#{item.symbol}', '#{item.orderId}')"> Update</button>
 						</td>
 			</table>
 
@@ -65,34 +67,17 @@ body
 						td=item.available
 						td=item.onOrder
 						<td>
-							if item.isTrade
-								- var pairCoin = index+'BTC'
-								if item.pair == pairCoin
-									<input type="radio" checked onclick="enableStoploss('#{index}')" name="#{index}tradecb" value="#{index}BTC"> BTC
-									<input type="radio" onclick="enableStoploss('#{index}')" name="#{index}tradecb" value="#{index}ETH"> ETH
-								else 
-									<input type="radio" onclick="enableStoploss('#{index}')" name="#{index}tradecb" value="#{index}BTC"> BTC
-									<input type="radio" checked onclick="enableStoploss('#{index}')" name="#{index}tradecb" value="#{index}ETH"> ETH
-							else
-								<input type="radio" onclick="enableStoploss('#{index}')" name="#{index}tradecb" value="#{index}BTC"> BTC
-								<input type="radio" onclick="enableStoploss('#{index}')" name="#{index}tradecb" value="#{index}ETH"> ETH
+							<input type="radio" onclick="enableStoploss('#{index}')" name="#{index}tradecb" value="#{index}BTC"> BTC
+							<input type="radio" onclick="enableStoploss('#{index}')" name="#{index}tradecb" value="#{index}ETH"> ETH
 						</td>
 						td
-							if item.isTrade
-								input(type='text' name=index+'sl' id=index+'sl' value=item.stopLoss)
-							else
-								input(type='text' name=index+'sl' id=index+'sl' disabled)
+							input(type='text' name=index+'SlAmount' id=index+'SlAmount' disabled)
 						td
-							if item.isTrade
-								input(type='text' name=index+'amount' id=index+'sl' value=item.stopLoss)
-							else
-								input(type='text' name=index+'amount' id=index+'sl' disabled)
+							input(type='checkbox' name=index+'manualPrice' id=index+'manualPrice' disabled)
+							span Manual price
+							input(type='text' name=index+'SlPercent' id=index+'SlPercent' disabled)
 						td
-							if item.isTrade
-								<button name="#{index}updateSl" id="#{index}updateSl" onclick="autoTrade('#{index}')")> Update </button>
-							else
-								<button name="#{index}startAuto" id="#{index}startAuto" onclick="autoTrade('#{index}')")> Autotrade </button>
-								<button name="#{index}updateSl" id="#{index}updateSl" onclick="autoTrade('#{index}')" style="display:none")> Update </button>
+							<button name="#{index}startAuto" id="#{index}startAuto" onclick="autoTrade('#{index}')")> Autotrade </button>
 			</table>
 			</div>
 		</div>
