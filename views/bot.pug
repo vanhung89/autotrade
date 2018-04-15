@@ -1,0 +1,99 @@
+doctype html
+html
+	head
+	link(rel='stylesheet', href='/stylesheets/bootstrap.min.css')
+	link(rel='stylesheet', href='/stylesheets/bootstrap-table.min.css')
+	script(src='/javascripts/bootstrap.min.js')
+	script(src='/javascripts/jquery-3.3.1.min.js')
+	script(src='/javascripts/script.js')
+	script(src='/javascripts/bootstrap-table.min.js')
+body
+	<div class="container">
+		<div class="row">
+			<div class="col-md-9">
+			h2 Normal open order
+			<table class="table table-list-search">
+				<thead>
+					<tr>
+						<th>Date</th>
+						<th>Pair</th>
+						<th>Type</th>
+						<th>Price</th>
+						<th>Current price</th>
+						<th>Stoploss price</th>
+						<th>Amount</th>
+						<th>Action</th>
+					</tr>
+				</thead>
+				- var time
+				tbody
+					each item in openOrders
+						tr
+						- time=new Date(item.time)
+						td=time.toLocaleString()
+						td=item.symbol
+						td=item.side
+						td=item.price
+						<td class="#{item.symbol}"></td>
+						td
+							if item.type == 'STOP_LOSS_LIMIT'
+								input(type='text' id='updateSl'+item.symbol value=item.stopPrice)
+							else
+								normal NORMAL_ORDER
+						td=item.origQty
+						<td><button name="Cancel" value="Cancel" onclick="cancelOrder('#{item.symbol}', '#{item.orderId}')"> Cancel</button>
+						</td>
+			</table>
+
+			h2 List coin
+			<table data-toggle="table" data-sort-name="amount" data-sort-order="desc">
+				<thead>
+					<tr>
+						<th data-field="pair" data-sortable="true"> Coin</th>
+						<th data-field="amount" data-sortable="true">Available</th>
+						<th>Amount locked</th>
+						<th>Trading</th>
+						<th>Amount</th>
+						<th>Stoploss</th>
+						<th>Action</th>
+					</tr>
+				</thead>
+				tbody
+					each item,index in balance
+						tr
+						td=index
+						td=item.available
+						td=item.onOrder
+						<td>
+							if item.isTrade
+								- var pairCoin = index+'BTC'
+								if item.pair == pairCoin
+									<input type="radio" checked onclick="enableStoploss('#{index}')" name="#{index}tradecb" value="#{index}BTC"> BTC
+									<input type="radio" onclick="enableStoploss('#{index}')" name="#{index}tradecb" value="#{index}ETH"> ETH
+								else 
+									<input type="radio" onclick="enableStoploss('#{index}')" name="#{index}tradecb" value="#{index}BTC"> BTC
+									<input type="radio" checked onclick="enableStoploss('#{index}')" name="#{index}tradecb" value="#{index}ETH"> ETH
+							else
+								<input type="radio" onclick="enableStoploss('#{index}')" name="#{index}tradecb" value="#{index}BTC"> BTC
+								<input type="radio" onclick="enableStoploss('#{index}')" name="#{index}tradecb" value="#{index}ETH"> ETH
+						</td>
+						td
+							if item.isTrade
+								input(type='text' name=index+'sl' id=index+'sl' value=item.stopLoss)
+							else
+								input(type='text' name=index+'sl' id=index+'sl' disabled)
+						td
+							if item.isTrade
+								input(type='text' name=index+'amount' id=index+'sl' value=item.stopLoss)
+							else
+								input(type='text' name=index+'amount' id=index+'sl' disabled)
+						td
+							if item.isTrade
+								<button name="#{index}updateSl" id="#{index}updateSl" onclick="autoTrade('#{index}')")> Update </button>
+							else
+								<button name="#{index}startAuto" id="#{index}startAuto" onclick="autoTrade('#{index}')")> Autotrade </button>
+								<button name="#{index}updateSl" id="#{index}updateSl" onclick="autoTrade('#{index}')" style="display:none")> Update </button>
+			</table>
+			</div>
+		</div>
+	</div>
