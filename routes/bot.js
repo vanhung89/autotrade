@@ -3,8 +3,8 @@ var express = require('express');
 var router = express.Router();
 const binance = require('node-binance-api');
 binance.options({
-  APIKEY: 'y3gnatDSNlvECLxVt6IPRMXvAdEQsTe1r4Scjqdpd29X4ByahpTDBg83dtyUrZBj',
-  APISECRET: 'xfV0kU0QAX6xZV0IqqmEH8f6bemPhaistTmy11xhSlAqRypSWeKw1KxchFZ3NXdk',
+  APIKEY: '',
+  APISECRET: '',
   useServerTime: true, // If you get timestamp errors, synchronize to server time at startup
   test: false // If you want to use sandbox mode where orders are simulated
 });
@@ -26,7 +26,12 @@ router.get('/', async function(req, res, next) {
 			listCoin[item.symbol.substring(0, item.symbol.length-3)].isTrade = true;
 			listCoin[item.symbol.substring(0, item.symbol.length-3)].pair = item.symbol;
 		}
-	})
+	});
+	
+	for(let itm in listCoin) {
+		let buyPrice = await getLatestBuyOrder(itm + "BTC");
+		listCoin[itm].buyPrice = buyPrice;
+	}
 	
 	//console.log("Current price map", listStoplossOrder);
 	res.render('bot', { openOrders:  order, balance: listCoin});
@@ -124,17 +129,15 @@ function getLatestBuyOrder(pair) {
 		binance.allOrders(pair, (error, orders, symbol) => {
 			console.log(symbol+" orders:", orders);
 			let latestPrice;
-			orders.forEach((item) => {
-				if(item.side === 'BUY' && item.status === 'FILLED') {
-					latestPrice = item.price;
+			for(let item in orders) {
+				if(orders[item].side === 'BUY' && orders[item].status === 'FILLED') {
+					latestPrice = orders[item].price;
 				}
-			});
+			}
+			resolve(latestPrice);
 		});
 	});
-	binance.allOrders(pair, (error, orders, symbol) => {
-			console.log(symbol+" orders:", orders);
-			
-		});
+
 }
 function getBalance() {
 	return new Promise(resolve => {

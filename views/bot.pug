@@ -56,6 +56,7 @@ body
 						<th>Amount locked</th>
 						<th>Trading</th>
 						<th>Amount</th>
+						<th>Price buy</th>
 						<th>Stoploss</th>
 						<th>Action</th>
 					</tr>
@@ -72,6 +73,10 @@ body
 						</td>
 						td
 							input(type='text' name=index+'SlAmount' id=index+'SlAmount' disabled)
+						td
+							input(type='checkbox' name=index+'manualBuyPrice' id=index+'manualBuyPrice' data-pair=item.buyPrice)
+							span Manual buy price
+							input(type='text' name=index+'buyPrice' id=index+'buyPrice' disabled value=item.buyPrice)
 						td
 							input(type='checkbox' name=index+'manualPrice' id=index+'manualPrice' disabled)
 							span Manual price

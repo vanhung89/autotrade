@@ -1,3 +1,15 @@
+
+
+	$( "#CNDmanualBuyPrice" ).toggle(function() {
+		let pair = $(this).attr("data-pair");
+		$("#" + pair + "buyPrice").removeAttr("disabled");
+	}, function() {
+		let pair = $(this).attr("data-pair");
+		$("#" + pair + "buyPrice").prop("disabled");
+	   
+
+	});
+
 	function unsubcribe(pair) {
 		$.ajax({
 		  method: "POST",
