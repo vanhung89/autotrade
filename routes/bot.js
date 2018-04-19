@@ -2,6 +2,11 @@
 var express = require('express');
 var router = express.Router();
 const binance = require('node-binance-api');
+var bittrex = require('node-bittrex-api');
+bittrex.options({
+  'apikey' : '',
+  'apisecret' : '',
+});
 binance.options({
   APIKEY: '',
   APISECRET: '',
@@ -106,7 +111,7 @@ router.post('/autotrade', async function(req, res, next) {
 		let price = req.body.stopPrice;
 		let stopPrice = req.body.stopPrice;
 		binance.sell(pair, quantity, price, {stopPrice: stopPrice, type: type});
-		listStoplossCoin[pair] = {orderId: }
+		//listStoplossCoin[pair] = {orderId: }
 		updateWebsocket();
 		res.send("OK");
 	} else {
@@ -116,11 +121,182 @@ router.post('/autotrade', async function(req, res, next) {
 
 router.get('/test', async function(req, res, next) {
 
-	binance.allOrders("AIONETH, XLMBTC", (error, orders, symbol) => {
-  console.log(symbol+" orders:", orders);
+	bittrex.getbalance({ currency : 'BTC' }, function( data, err ) {
+		  if (err) {
+			return console.error(err);
+		  }
+		  res.send(data);
+		});
+	
 });
-	res.end('OK');
+
+router.get('/buy/:coin_name', async function(req, res, next) {
+	 let coinName = req.params.coin_name;
+
+	 if(coinName == undefined || "" == coinName){
+	  res.statusCode = 400;
+	  res.end('BAD REQUEST');
+	 }
+
+	 let symbol = coinName.toUpperCase() + 'BTC';
+	let myBtcAmount = await getBtcBalance();
+	let price = await getPriceOfPair(symbol);
+	console.log('price', price);
+	  price = price*110/100;
+	  console.log('new price', price.toFixed(8));
+	  let amount = ((myBtcAmount - (myBtcAmount * 0.002)) / price);
+		amount = Math.floor(amount);
+		console.log('Amount', amount);
+	   binance.buy(symbol,amount,price.toFixed(8),{},(error,response) =>  {
+		if(error) {
+			res.send(error);
+			return;
+		}
+	   if(response.status === 'FILLED') {
+		res.end('Order is completed');
+	   } else if (response.status !== 'FILLED' && response.status === 'NEW') {
+		  binance.cancel(symbol, response.orderId, (error, response, symbol) => {
+		  console.log(symbol+" cancel response:", response);
+		  if(error) {
+			  res.send(error);
+			  return;
+		  }
+		  res.end('Price is low so can not fill order. Order is cancelled');
+		});
+	   } else {
+		   res.end('Order is not success, data order: ', response);
+	   }
+	   });
+
 });
+
+router.get('/sell/:coin_name/amount/:quantity', async function(req, res, next) {
+	 let coinName = req.params.coin_name;
+	let quantity = req.params.quantity;
+	 if(coinName == undefined || "" == coinName || quantity == undefined || "" == quantity){
+	  res.statusCode = 400;
+	  res.end('BAD REQUEST');
+	 }
+	
+	 let symbol = coinName.toUpperCase() + 'BTC';
+	binance.marketSell(symbol, quantity, (error, response) => {
+		if(error) {
+			res.send(error);
+			return;
+		} 
+		res.send(response);
+	});
+
+});
+
+router.get('/bittrex/buy/:coin_name', async function(req, res, next) {
+	 let coinName = req.params.coin_name;
+
+	 if(coinName == undefined || "" == coinName){
+	  res.statusCode = 400;
+	  res.end('BAD REQUEST');
+	 }
+
+	 let symbol = 'BTC-' + coinName.toUpperCase();
+	let myBtcAmount = await getBittrexBtcBalance();
+	console.log('BTC amount', myBtcAmount);
+	let price = await getPriceOfTicker(symbol);
+	console.log('price', price);
+	  price = price*110/100;
+	  console.log('new price', price.toFixed(8));
+	  let amount = ((myBtcAmount - (myBtcAmount * 0.002)) / price);
+		amount = Math.floor(amount);
+		console.log('Amount', amount);
+	   bittrex.tradebuy({
+		  MarketName: symbol,
+		  OrderType: 'LIMIT',
+		  Quantity: amount,
+		  Rate: price.toFixed(8),
+		  TimeInEffect: 'IMMEDIATE_OR_CANCEL', // supported options are 'IMMEDIATE_OR_CANCEL', 'GOOD_TIL_CANCELLED', 'FILL_OR_KILL'
+		  ConditionType: 'NONE', // supported options are 'NONE', 'GREATER_THAN', 'LESS_THAN'
+		  Target: 0, // used in conjunction with ConditionType
+		}, function( data, err ) {
+			if(err) {
+				res.send(err);
+				return;
+			}
+		  console.log( data );
+		  res.send(data);
+		});
+
+});
+
+router.get('/bittrex/sell/:coin_name/amount/:amount', async function(req, res, next) {
+	 let coinName = req.params.coin_name;
+
+	 if(coinName == undefined || "" == coinName){
+	  res.statusCode = 400;
+	  res.end('BAD REQUEST');
+	 }
+
+	 let symbol = 'BTC-' + coinName.toUpperCase();
+
+	let price = await getPriceOfTicker(symbol);
+	console.log('price', price);
+	  let amount = req.params.amount;
+		console.log('Amount', amount);
+	   bittrex.tradesell({
+		  MarketName: symbol,
+		  OrderType: 'LIMIT',
+		  Quantity: amount,
+		  Rate: price.toFixed(8),
+		  TimeInEffect: 'IMMEDIATE_OR_CANCEL', // supported options are 'IMMEDIATE_OR_CANCEL', 'GOOD_TIL_CANCELLED', 'FILL_OR_KILL'
+		  ConditionType: 'NONE', // supported options are 'NONE', 'GREATER_THAN', 'LESS_THAN'
+		  Target: 0, // used in conjunction with ConditionType
+		}, function( data, err ) {
+			if(err)
+			{
+				res.send(err);
+				return;
+			}
+		  console.log( data );
+		  res.send(data);
+		});
+
+});
+
+function getBtcBalance() {
+	return new Promise(resolve => {
+		binance.balance((error, balances) => {
+		  console.log("BTC balance", balances.BTC);
+		  resolve(balances.BTC.available);
+		});
+	});
+}
+
+function getBittrexBtcBalance() {
+	return new Promise(resolve => {
+		bittrex.getbalance({ currency : 'BTC' }, function( data, err ) {
+		  if (err) {
+			return console.error(err);
+		  }
+		  resolve(data.result.Available);
+		});
+	});
+}
+
+function getPriceOfPair(pair) {
+	return new Promise((resolve, reject) => {
+		binance.prices(pair,function(error,ticker){
+			if(error) reject(0);
+			else resolve(ticker[pair])
+		});
+	});
+}
+
+function getPriceOfTicker(pair) {
+	return new Promise((resolve, reject) => {
+		bittrex.getticker( { market : pair }, function( data, err ) {
+		  if(err) reject(0);
+			else resolve(data.result.Last)
+		});
+	});
+}
 
 function getOpenOrders() {
 	return new Promise(resolve => {
@@ -159,7 +335,7 @@ function subcribeCoin(pair) {
 		let tick = binance.last(chart);
 		const last = chart[tick].close;;
 		currentPriceMap.set(symbol, last);
-		let coin = listCoin[pair.substring(0, item.symbol.length-3)];
+		let coin = listCoin[pair.substring(0, pair.length-3)];
 		let currentPrice = currentPriceMap.get(pair);
 		let currentPercent = (currentPrice - coin.buyPrice)*100;
 		if(currentPercent >= 10) {
