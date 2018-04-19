@@ -10,7 +10,7 @@ html
 body
 	<div class="container">
 		<div class="row">
-			<div class="col-md-9">
+			<div class="col-md-9" style="max-width: 100%">
 			h2 Normal open order
 			<table class="table table-list-search">
 				<thead>
@@ -55,8 +55,8 @@ body
 						<th data-field="amount" data-sortable="true">Available</th>
 						<th>Amount locked</th>
 						<th>Trading</th>
-						<th>Amount</th>
 						<th>Price buy</th>
+						<th>Amount</th>
 						<th>Stoploss</th>
 						<th>Action</th>
 					</tr>
@@ -72,14 +72,10 @@ body
 							<input type="radio" onclick="enableStoploss('#{index}')" name="#{index}tradecb" value="#{index}ETH"> ETH
 						</td>
 						td
+							input(type='text' name=index+'buyPrice' id=index+'buyPrice' value=item.buyPrice)
+						td
 							input(type='text' name=index+'SlAmount' id=index+'SlAmount' disabled)
 						td
-							input(type='checkbox' name=index+'manualBuyPrice' id=index+'manualBuyPrice' data-pair=item.buyPrice)
-							span Manual buy price
-							input(type='text' name=index+'buyPrice' id=index+'buyPrice' disabled value=item.buyPrice)
-						td
-							input(type='checkbox' name=index+'manualPrice' id=index+'manualPrice' disabled)
-							span Manual price
 							input(type='text' name=index+'SlPercent' id=index+'SlPercent' disabled)
 						td
 							<button name="#{index}startAuto" id="#{index}startAuto" onclick="autoTrade('#{index}')")> Autotrade </button>

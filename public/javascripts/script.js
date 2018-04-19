@@ -24,16 +24,11 @@
 		let percentStopLoss = $('input[id="'+coin+'SlPercent"][type="text"]').val();
 		let amountStopLoss = $('input[id="'+coin+'SlAmount"][type="text"]').val();
 		let pairCoin = $('input[name="'+coin+'tradecb"][type="radio"]:checked').val();
-		let flagManualPrice = $('input[name="'+coin+'manualPrice"][type="checkbox"]:checked').length;
-		if(flagManualPrice > 0 ) {
-			if (!confirm('Bạn đang dùng price để trade chứ không dùng phần trăm. Hãy chắc chắn rằng bạn đã điền đúng giá, và chọn đúng pair là ETH hay BTC')) {
-				return;
-			}
-		} else {
-			if (!confirm('Hãy chắc chắn rằng bạn đã chọn đúng pair là ETH hoặc BTC')) {
-				return;
-			}
+
+		if (!confirm('Hãy chắc chắn rằng bạn đã chọn đúng pair là ETH hoặc BTC')) {
+			return;
 		}
+
 		if(percentStopLoss == '' || isNaN(percentStopLoss) || Number(percentStopLoss) == 0){
 			alert("Giá trị của stoploss phải là kiểu số");
 			return;

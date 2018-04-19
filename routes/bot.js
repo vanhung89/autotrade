@@ -11,6 +11,7 @@ binance.options({
 var currentPriceMap = new Map();
 var websocket;
 var listCoin;
+var listStoplossCoin = [];
 
 /* GET home page. */
 router.get('/', async function(req, res, next) {
@@ -100,7 +101,12 @@ router.post('/autotrade', async function(req, res, next) {
 				currentPriceMap.delete(key + 'ETH');
 			}
 		}
-
+		let type = "STOP_LOSS_LIMIT";
+		let quantity = req.body.amount;
+		let price = req.body.stopPrice;
+		let stopPrice = req.body.stopPrice;
+		binance.sell(pair, quantity, price, {stopPrice: stopPrice, type: type});
+		listStoplossCoin[pair] = {orderId: }
 		updateWebsocket();
 		res.send("OK");
 	} else {
@@ -110,7 +116,7 @@ router.post('/autotrade', async function(req, res, next) {
 
 router.get('/test', async function(req, res, next) {
 
-	binance.allOrders("AIONETH", (error, orders, symbol) => {
+	binance.allOrders("AIONETH, XLMBTC", (error, orders, symbol) => {
   console.log(symbol+" orders:", orders);
 });
 	res.end('OK');
@@ -153,6 +159,13 @@ function subcribeCoin(pair) {
 		let tick = binance.last(chart);
 		const last = chart[tick].close;;
 		currentPriceMap.set(symbol, last);
+		let coin = listCoin[pair.substring(0, item.symbol.length-3)];
+		let currentPrice = currentPriceMap.get(pair);
+		let currentPercent = (currentPrice - coin.buyPrice)*100;
+		if(currentPercent >= 10) {
+			
+		}
+		if(coin.buyPrice)
 		console.log("Current price map", currentPriceMap);
 		let json = JSON.stringify({ type:'message', pair: pair, price:last });
 		if(websocket) {
