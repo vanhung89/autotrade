@@ -17,24 +17,26 @@ var currentPriceMap = new Map();
 var websocket;
 var listCoin;
 var listStoplossCoin = [];
-
+var order;
 /* GET home page. */
 router.get('/', async function(req, res, next) {
-	if(typeof listCoin === 'undefined') {
-		listCoin = await getBalance();
-	}
+
+	listCoin = await getBalance();
+
 	
-	let order = await getOpenOrders();
+	order = await getOpenOrders();
 
 	order.forEach((item) => {
 		subcribeCoin(item.symbol);
 		if(listCoin[item.symbol.substring(0, item.symbol.length-3)]) {
-			listCoin[item.symbol.substring(0, item.symbol.length-3)].isTrade = true;
 			listCoin[item.symbol.substring(0, item.symbol.length-3)].pair = item.symbol;
 		}
 	});
 	
 	for(let itm in listCoin) {
+		if(listCoin[itm].isTrade == true) {
+			continue;
+		}
 		let buyPrice = await getLatestBuyOrder(itm + "BTC");
 		listCoin[itm].buyPrice = buyPrice;
 	}
@@ -57,16 +59,18 @@ router.post('/unsubcribe', function(req, res, next) {
 router.post('/order/cancel', function(req, res, next) {
 	let pair = req.body.pair;
 	let orderId = req.body.orderId;
-	binance.cancel(pair, orderid, (error, response, symbol) => {
+	console.log('pair:' + pair + ', orderid: ' + orderId);
+	binance.cancel(pair, orderId, (error, response, symbol) => {
 	  console.log(symbol+" cancel response:", response);
 	  if(error) {
-		  res.end('NG');
+		  res.send(error.body);
+		  return;
 	  }
 	  if(currentPriceMap.delete(pair)) {
 		  unSubcribeCoin(pair);
-		  res.end('OK');
+		  res.send('OK');
 	  } else {
-		  res.end('NG');
+		  res.send('Failed');
 	  }
 	});
 });
@@ -74,7 +78,7 @@ router.post('/order/cancel', function(req, res, next) {
 router.post('/order/update', function(req, res, next) {
 	let pair = req.body.pair;
 	let orderId = req.body.orderId;
-	binance.cancel(pair, orderid, (error, response, symbol) => {
+	binance.cancel(pair, orderId, (error, response, symbol) => {
 		console.log(symbol+" cancel response:", response);
 		if(error) {
 		  res.end('NG');
@@ -84,9 +88,25 @@ router.post('/order/update', function(req, res, next) {
 	let quantity = req.body.amount;
 	let price = req.body.stopPrice;
 	let stopPrice = req.body.stopPrice;
-	binance.sell(pair, quantity, price, {stopPrice: stopPrice, type: type});
-	res.end('OK');
+	binance.sell(pair, quantity, price, {stopPrice: stopPrice, type: type}, (error, response) => {
+		if(error) {
+			res.end('NG');
+		}
+		res.end('OK');
+	});
+	});
+});
 
+router.post('/selllimit', function(req, res, next) {
+	let pair = req.body.pair;
+	let amount = req.body.amount;
+	let sellPrice = req.body.sellPrice;
+	binance.sell(pair, amount, sellPrice, (error, response) => {
+		if(error) {
+			res.send(error.body);
+		} else {
+			res.send('OK');
+		}
 	});
 });
 
@@ -95,25 +115,33 @@ router.post('/autotrade', async function(req, res, next) {
 	let key = req.body.coin;
 	if(listCoin[key]) {
 		let pair = req.body.pair;
-		let orderHist
-		listCoin[key].isTrade = true;
-		listCoin[key].stopLoss = req.body.percentStopLoss;
-		listCoin[key].pair = pair;
-		if(currentPriceMap.has(key + 'BTC') || currentPriceMap.has(key + 'ETH')) {
-			console.log('Delete current pair to update new pair');
-			if(!currentPriceMap.delete(key + 'BTC')) {
-				console.log('Pair is ETH');
-				currentPriceMap.delete(key + 'ETH');
-			}
-		}
+		
 		let type = "STOP_LOSS_LIMIT";
-		let quantity = req.body.amount;
-		let price = req.body.stopPrice;
-		let stopPrice = req.body.stopPrice;
-		binance.sell(pair, quantity, price, {stopPrice: stopPrice, type: type});
-		//listStoplossCoin[pair] = {orderId: }
-		updateWebsocket();
-		res.send("OK");
+		let quantity = req.body.amountStopLoss;
+		let stoploss = (100 - req.body.percentStopLoss)/100;
+		let stopPrice = req.body.buyPrice * stoploss;
+		console.log('quantity' + quantity +',pair:' + pair + ',price:' + stopPrice);
+		binance.sell(pair, quantity, stopPrice.toFixed(8), {stopPrice: stopPrice.toFixed(8), type: type}, (error, response) => {
+			if(error) {
+				console.log(error);
+				res.send(error.body);
+				return;
+			}
+
+			/*if(currentPriceMap.has(key + 'BTC') || currentPriceMap.has(key + 'ETH')) {
+				console.log('Delete current pair to update new pair');
+				if(!currentPriceMap.delete(key + 'BTC')) {
+					console.log('Pair is ETH');
+					currentPriceMap.delete(key + 'ETH');
+				}
+			}*/
+			console.log("order id: " + response.orderId);
+			listStoplossCoin[pair] = {percentStopLoss: req.body.percentStopLoss, buyPrice: req.body.buyPrice, orderId: response.orderId, amount: quantity};
+			listCoin[key].isTrade = true;
+			listCoin[key].pair = pair;
+			updateWebsocket();
+			res.send("OK");
+		});
 	} else {
 		res.send("NG");
 	}
@@ -335,13 +363,29 @@ function subcribeCoin(pair) {
 		let tick = binance.last(chart);
 		const last = chart[tick].close;;
 		currentPriceMap.set(symbol, last);
-		let coin = listCoin[pair.substring(0, pair.length-3)];
-		let currentPrice = currentPriceMap.get(pair);
-		let currentPercent = (currentPrice - coin.buyPrice)*100;
-		if(currentPercent >= 10) {
-			
+		if(listStoplossCoin.length != 0) {
+			let stoplossCoin = listStoplossCoin[symbol];
+			let currentPercent = (last - stoplossCoin.buyPrice)*100;
+			if(currentPercent >= (stoplossCoin.percentStopLoss + 5)) {
+				binance.cancel(symbol, stoplossCoin.orderId, (error, response, symbol) => {
+					if(error) {
+						console.log(error);
+					}
+				  console.log(symbol+" cancel response:", response);
+				  let type = "STOP_LOSS_LIMIT";
+					let quantity = stoplossCoin.amount;
+					let price = stoplossCoin.buyPrice * (100 + stoplossCoin.percentStopLoss)/100;
+					binance.sell(symbol, quantity, price, {stopPrice: price, type: type}, (error, response) => {
+						if(error) {
+							console.log(error);
+						}
+						listStoplossCoin[symbol].buyPrice = last;
+						console.log(symbol+" Stoploss order response:", response);
+					});
+				});
+			}
 		}
-		if(coin.buyPrice)
+		
 		console.log("Current price map", currentPriceMap);
 		let json = JSON.stringify({ type:'message', pair: pair, price:last });
 		if(websocket) {
@@ -349,6 +393,32 @@ function subcribeCoin(pair) {
 		}
 	});
 }
+
+function cancelOrder(pair, orderId) {
+	return new Promise(resolve => {
+		binance.cancel(pair, orderId, (error, response, symbol) => {
+			if(error) {
+				resolve('Error');
+			} else {
+				resolve('OK');
+			}
+		});
+	});
+}
+
+function makeStoplossOrder(pair, quantity, price) {
+	return new Promise(resolve => {
+		let type = "STOP_LOSS_LIMIT";
+		binance.sell(pair, quantity, price, {stopPrice: price, type: type}, (error, response) => {
+			if(error) {
+				resolve('Error');
+			} else {
+				resolve('OK');
+			}
+		});
+	});
+}
+
 
 function unSubcribeCoin(pair) {
 	binance.websockets.terminate(pair.toLowerCase()+'@kline_1m'); 
@@ -359,10 +429,11 @@ function updateWebsocket() {
 	for ( let endpoint in endpoints ) {
 		binance.websockets.terminate(endpoint);
 	}
-	for(let key in listCoin) {
-		if(listCoin[key].isTrade) {
-			subcribeCoin(listCoin[key].pair);
-		}
-	}
+	
+
+	order.forEach((item) => {
+		console.log("Subcribe coin:" + item.symbol)
+			subcribeCoin(item.symbol);
+	});
 }
 module.exports = router;

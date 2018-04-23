@@ -24,10 +24,11 @@
 		let percentStopLoss = $('input[id="'+coin+'SlPercent"][type="text"]').val();
 		let amountStopLoss = $('input[id="'+coin+'SlAmount"][type="text"]').val();
 		let pairCoin = $('input[name="'+coin+'tradecb"][type="radio"]:checked').val();
-
-		if (!confirm('Hãy chắc chắn rằng bạn đã chọn đúng pair là ETH hoặc BTC')) {
+		let buyPrice = $('input[id="'+coin+'buyPrice"][type="text"]').val();
+		
+		/* if (!confirm('Hãy chắc chắn rằng bạn đã chọn đúng pair là ETH hoặc BTC')) {
 			return;
-		}
+		} */
 
 		if(percentStopLoss == '' || isNaN(percentStopLoss) || Number(percentStopLoss) == 0){
 			alert("Giá trị của stoploss phải là kiểu số");
@@ -40,12 +41,35 @@
 		$.ajax({
 		  method: "POST",
 		  url: "/bot/autotrade",
-		  data: { coin: coin, percentStopLoss: percentStopLoss, pair: pairCoin, amountStopLoss: amountStopLoss, flagManualPrice: flagManualPrice}
+		  data: { coin: coin, percentStopLoss: percentStopLoss, pair: pairCoin, amountStopLoss: amountStopLoss, buyPrice: buyPrice}
 		}).done(function( msg ) {
 			if(msg === 'OK') {
 				alert('Thao tác thành công');
 			} else {
-				alert('Thao tác thất bại');
+				alert('Thac tác thất bại \n' + msg);
+			}
+		  });
+	}
+	
+	function sellLimit(coin) {
+		let amount = $('input[id="'+coin+'SlAmount"][type="text"]').val();
+		let pairCoin = $('input[name="'+coin+'tradecb"][type="radio"]:checked').val();
+		let sellPrice = $('input[id="'+coin+'buyPrice"][type="text"]').val();
+		
+
+		if(amount == '' || isNaN(amount) || Number(amount) == 0){
+			alert("Số lượng muốn trade phải là kiểu số");
+			return;
+		}
+		$.ajax({
+		  method: "POST",
+		  url: "/bot/selllimit",
+		  data: { pair: pairCoin, amount: amount, sellPrice: sellPrice}
+		}).done(function( msg ) {
+			if(msg === 'OK') {
+				alert('Thao tác thành công');
+			} else {
+				alert('Thac tác thất bại \n' + msg);
 			}
 		  });
 	}
@@ -64,7 +88,7 @@
 			if(msg === 'OK') {
 				alert('Thao tác thành công');
 			} else {
-				alert('Thao tác thất bại');
+				alert('Thao tác thất bại\n' + msg);
 			}
 		  });
 	}

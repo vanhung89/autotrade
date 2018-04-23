@@ -55,7 +55,7 @@ body
 						<th data-field="amount" data-sortable="true">Available</th>
 						<th>Amount locked</th>
 						<th>Trading</th>
-						<th>Price buy</th>
+						<th>Price Buy/Sell</th>
 						<th>Amount</th>
 						<th>Stoploss</th>
 						<th>Action</th>
@@ -69,7 +69,7 @@ body
 						td=item.onOrder
 						<td>
 							<input type="radio" onclick="enableStoploss('#{index}')" name="#{index}tradecb" value="#{index}BTC"> BTC
-							<input type="radio" onclick="enableStoploss('#{index}')" name="#{index}tradecb" value="#{index}ETH"> ETH
+							<input type="radio" onclick="enableStoploss('#{index}')" name="#{index}tradecb" value="#{index}BTC"> ETH
 						</td>
 						td
 							input(type='text' name=index+'buyPrice' id=index+'buyPrice' value=item.buyPrice)
@@ -79,6 +79,7 @@ body
 							input(type='text' name=index+'SlPercent' id=index+'SlPercent' disabled)
 						td
 							<button name="#{index}startAuto" id="#{index}startAuto" onclick="autoTrade('#{index}')")> Autotrade </button>
+							<button name="#{index}sellLimit" id="#{index}sellLimit" onclick="sellLimit('#{index}')")> Sell </button>
 			</table>
 			</div>
 		</div>
