@@ -6,12 +6,13 @@ html
 	script(src='/javascripts/bootstrap.min.js')
 	script(src='/javascripts/jquery-3.3.1.min.js')
 	script(src='/javascripts/script.js')
+	script(src='/javascripts/ws-binance.js')
 	script(src='/javascripts/bootstrap-table.min.js')
 body
 	<div class="container">
 		<div class="row">
 			<div class="col-md-9" style="max-width: 100%">
-			h2 Normal open order
+			h2 Open order
 			<table class="table table-list-search">
 				<thead>
 					<tr>
@@ -42,8 +43,8 @@ body
 								normal NORMAL_ORDER
 						td=item.origQty
 						input(type='hidden' id='amountUpdateSl'+item.symbol value=item.origQty)
-						<td><button onclick="cancelOrder('#{item.symbol}', '#{item.orderId}')"> Cancel</button>
-							<button onclick="updateOrder('#{item.symbol}', '#{item.orderId}')"> Update</button>
+						<td><button onclick="cancelOrder('#{item.symbol}', '#{item.orderId}', 'binance')"> Cancel</button>
+							//<button onclick="updateOrder('#{item.symbol}', '#{item.orderId}', 'binance')"> Update</button>
 						</td>
 			</table>
 
@@ -78,8 +79,8 @@ body
 						td
 							input(type='text' name=index+'SlPercent' id=index+'SlPercent' disabled)
 						td
-							<button name="#{index}startAuto" id="#{index}startAuto" onclick="autoTrade('#{index}')")> Autotrade </button>
-							<button name="#{index}sellLimit" id="#{index}sellLimit" onclick="sellLimit('#{index}')")> Sell </button>
+							<button name="#{index}startAuto" id="#{index}startAuto" onclick="autoTrade('#{index}', 'binance')")> Autotrade </button>
+							<button name="#{index}sellLimit" id="#{index}sellLimit" onclick="sellLimit('#{index}', 'binance')")> Sell </button>
 			</table>
 			</div>
 		</div>

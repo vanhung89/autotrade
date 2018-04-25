@@ -2,11 +2,6 @@
 var express = require('express');
 var router = express.Router();
 const binance = require('node-binance-api');
-var bittrex = require('node-bittrex-api');
-bittrex.options({
-  'apikey' : '',
-  'apisecret' : '',
-});
 binance.options({
   APIKEY: '',
   APISECRET: '',
@@ -26,13 +21,15 @@ router.get('/', async function(req, res, next) {
 	
 	order = await getOpenOrders();
 
-	order.forEach((item) => {
-		subcribeCoin(item.symbol);
-		if(listCoin[item.symbol.substring(0, item.symbol.length-3)]) {
-			listCoin[item.symbol.substring(0, item.symbol.length-3)].pair = item.symbol;
-		}
-	});
-	
+	if(order.length > 0) {
+		order.forEach((item) => {
+			subcribeCoin(item.symbol);
+			if(listCoin[item.symbol.substring(0, item.symbol.length-3)]) {
+				listCoin[item.symbol.substring(0, item.symbol.length-3)].pair = item.symbol;
+			}
+		});
+	}
+
 	for(let itm in listCoin) {
 		if(listCoin[itm].isTrade == true) {
 			continue;
@@ -42,7 +39,7 @@ router.get('/', async function(req, res, next) {
 	}
 	
 	//console.log("Current price map", listStoplossOrder);
-	res.render('bot', { openOrders:  order, balance: listCoin});
+	res.render('bot-binance', { openOrders:  order, balance: listCoin});
 });
 
 router.ws('/socket', function(ws, req) {
@@ -123,7 +120,7 @@ router.post('/autotrade', async function(req, res, next) {
 		console.log('quantity' + quantity +',pair:' + pair + ',price:' + stopPrice);
 		binance.sell(pair, quantity, stopPrice.toFixed(8), {stopPrice: stopPrice.toFixed(8), type: type}, (error, response) => {
 			if(error) {
-				console.log(error);
+				console.log(error.body);
 				res.send(error.body);
 				return;
 			}
@@ -137,6 +134,7 @@ router.post('/autotrade', async function(req, res, next) {
 			}*/
 			console.log("order id: " + response.orderId);
 			listStoplossCoin[pair] = {percentStopLoss: req.body.percentStopLoss, buyPrice: req.body.buyPrice, orderId: response.orderId, amount: quantity};
+			console.log("New listStoplossCoin: " + listStoplossCoin);
 			listCoin[key].isTrade = true;
 			listCoin[key].pair = pair;
 			updateWebsocket();
@@ -148,13 +146,6 @@ router.post('/autotrade', async function(req, res, next) {
 });
 
 router.get('/test', async function(req, res, next) {
-
-	bittrex.getbalance({ currency : 'BTC' }, function( data, err ) {
-		  if (err) {
-			return console.error(err);
-		  }
-		  res.send(data);
-		});
 	
 });
 
@@ -217,77 +208,6 @@ router.get('/sell/:coin_name/amount/:quantity', async function(req, res, next) {
 
 });
 
-router.get('/bittrex/buy/:coin_name', async function(req, res, next) {
-	 let coinName = req.params.coin_name;
-
-	 if(coinName == undefined || "" == coinName){
-	  res.statusCode = 400;
-	  res.end('BAD REQUEST');
-	 }
-
-	 let symbol = 'BTC-' + coinName.toUpperCase();
-	let myBtcAmount = await getBittrexBtcBalance();
-	console.log('BTC amount', myBtcAmount);
-	let price = await getPriceOfTicker(symbol);
-	console.log('price', price);
-	  price = price*110/100;
-	  console.log('new price', price.toFixed(8));
-	  let amount = ((myBtcAmount - (myBtcAmount * 0.002)) / price);
-		amount = Math.floor(amount);
-		console.log('Amount', amount);
-	   bittrex.tradebuy({
-		  MarketName: symbol,
-		  OrderType: 'LIMIT',
-		  Quantity: amount,
-		  Rate: price.toFixed(8),
-		  TimeInEffect: 'IMMEDIATE_OR_CANCEL', // supported options are 'IMMEDIATE_OR_CANCEL', 'GOOD_TIL_CANCELLED', 'FILL_OR_KILL'
-		  ConditionType: 'NONE', // supported options are 'NONE', 'GREATER_THAN', 'LESS_THAN'
-		  Target: 0, // used in conjunction with ConditionType
-		}, function( data, err ) {
-			if(err) {
-				res.send(err);
-				return;
-			}
-		  console.log( data );
-		  res.send(data);
-		});
-
-});
-
-router.get('/bittrex/sell/:coin_name/amount/:amount', async function(req, res, next) {
-	 let coinName = req.params.coin_name;
-
-	 if(coinName == undefined || "" == coinName){
-	  res.statusCode = 400;
-	  res.end('BAD REQUEST');
-	 }
-
-	 let symbol = 'BTC-' + coinName.toUpperCase();
-
-	let price = await getPriceOfTicker(symbol);
-	console.log('price', price);
-	  let amount = req.params.amount;
-		console.log('Amount', amount);
-	   bittrex.tradesell({
-		  MarketName: symbol,
-		  OrderType: 'LIMIT',
-		  Quantity: amount,
-		  Rate: price.toFixed(8),
-		  TimeInEffect: 'IMMEDIATE_OR_CANCEL', // supported options are 'IMMEDIATE_OR_CANCEL', 'GOOD_TIL_CANCELLED', 'FILL_OR_KILL'
-		  ConditionType: 'NONE', // supported options are 'NONE', 'GREATER_THAN', 'LESS_THAN'
-		  Target: 0, // used in conjunction with ConditionType
-		}, function( data, err ) {
-			if(err)
-			{
-				res.send(err);
-				return;
-			}
-		  console.log( data );
-		  res.send(data);
-		});
-
-});
-
 function getBtcBalance() {
 	return new Promise(resolve => {
 		binance.balance((error, balances) => {
@@ -297,31 +217,11 @@ function getBtcBalance() {
 	});
 }
 
-function getBittrexBtcBalance() {
-	return new Promise(resolve => {
-		bittrex.getbalance({ currency : 'BTC' }, function( data, err ) {
-		  if (err) {
-			return console.error(err);
-		  }
-		  resolve(data.result.Available);
-		});
-	});
-}
-
 function getPriceOfPair(pair) {
 	return new Promise((resolve, reject) => {
 		binance.prices(pair,function(error,ticker){
 			if(error) reject(0);
 			else resolve(ticker[pair])
-		});
-	});
-}
-
-function getPriceOfTicker(pair) {
-	return new Promise((resolve, reject) => {
-		bittrex.getticker( { market : pair }, function( data, err ) {
-		  if(err) reject(0);
-			else resolve(data.result.Last)
 		});
 	});
 }
@@ -363,30 +263,36 @@ function subcribeCoin(pair) {
 		let tick = binance.last(chart);
 		const last = chart[tick].close;;
 		currentPriceMap.set(symbol, last);
-		if(listStoplossCoin.length != 0) {
-			let stoplossCoin = listStoplossCoin[symbol];
-			let currentPercent = (last - stoplossCoin.buyPrice)*100;
-			if(currentPercent >= (stoplossCoin.percentStopLoss + 5)) {
-				binance.cancel(symbol, stoplossCoin.orderId, (error, response, symbol) => {
+
+		if(typeof listStoplossCoin[pair] != 'undefined') {
+			let stoplossCoin = listStoplossCoin[pair];
+			let currentPercent = (last - stoplossCoin.buyPrice)/stoplossCoin.buyPrice*100;
+			let percentStopLossRatio = Number(stoplossCoin.percentStopLoss) + 5;
+			console.log('Current percent' + pair + ': ' + currentPercent);
+			console.log('Stoploss percent' + pair + ': ' + percentStopLossRatio);
+			if(currentPercent >= percentStopLossRatio) {
+				binance.cancel(pair, stoplossCoin.orderId, (error, response, symbol) => {
 					if(error) {
-						console.log(error);
+						console.log(error.body);
 					}
 				  console.log(symbol+" cancel response:", response);
 				  let type = "STOP_LOSS_LIMIT";
 					let quantity = stoplossCoin.amount;
-					let price = stoplossCoin.buyPrice * (100 + stoplossCoin.percentStopLoss)/100;
-					binance.sell(symbol, quantity, price, {stopPrice: price, type: type}, (error, response) => {
+					let price = last * (100 - stoplossCoin.percentStopLoss)/100;
+					console.log('New price: ' + price);
+					binance.sell(pair, quantity, price.toFixed(8), {stopPrice: price.toFixed(8), type: type}, (error, response) => {
 						if(error) {
-							console.log(error);
+							console.log(error.body);
 						}
-						listStoplossCoin[symbol].buyPrice = last;
-						console.log(symbol+" Stoploss order response:", response);
+						let newRatio = (100 + Number(stoplossCoin.percentStopLoss))/100;
+						listStoplossCoin[pair].buyPrice = stoplossCoin.buyPrice * newRatio;
+						listStoplossCoin[pair].orderId = response.orderId;
+						console.log(pair+" Stoploss order response:", response);
 					});
 				});
 			}
 		}
 		
-		console.log("Current price map", currentPriceMap);
 		let json = JSON.stringify({ type:'message', pair: pair, price:last });
 		if(websocket) {
 			websocket.send(json);
@@ -430,10 +336,16 @@ function updateWebsocket() {
 		binance.websockets.terminate(endpoint);
 	}
 	
-
-	order.forEach((item) => {
-		console.log("Subcribe coin:" + item.symbol)
+	if(order.length > 0) {
+		order.forEach((item) => {
+			console.log("Subcribe coin:" + item.symbol)
 			subcribeCoin(item.symbol);
-	});
+		});
+	}
+	
+	for(let item in listStoplossCoin) {
+		console.log("Subcribe coin:" + item);
+		subcribeCoin(item);
+	}
 }
 module.exports = router;

@@ -1,0 +1,86 @@
+doctype html
+html
+	head
+	link(rel='stylesheet', href='/stylesheets/bootstrap.min.css')
+	link(rel='stylesheet', href='/stylesheets/bootstrap-table.min.css')
+	script(src='/javascripts/bootstrap.min.js')
+	script(src='/javascripts/jquery-3.3.1.min.js')
+	script(src='/javascripts/script.js')
+	script(src='/javascripts/ws-bittrex.js')
+	script(src='/javascripts/bootstrap-table.min.js')
+body
+	<div class="container">
+		<div class="row">
+			<div class="col-md-9" style="max-width: 100%">
+			h2 Open order
+			<table class="table table-list-search">
+				<thead>
+					<tr>
+						<th>Date</th>
+						<th>Pair</th>
+						<th>Type</th>
+						<th>Price</th>
+						<th>Current price</th>
+						<th>Stoploss price</th>
+						<th>Amount</th>
+						<th>Action</th>
+					</tr>
+				</thead>
+				- var time
+				tbody
+					each item,index in openOrders
+						tr
+						td=item.Opened
+						td=item.Exchange
+						td=item.OrderType
+						td=item.Limit
+						<td class="#{item.Exchange}"></td>
+						td
+							if item.OrderType == 'STOP_LOSS_LIMIT'
+								input(type='text' id='updateSl'+item.Exchange value=item.Limit)
+							else
+								normal NORMAL_ORDER
+						td=item.Quantity
+						input(type='hidden' id='amountUpdateSl'+item.Exchange value=item.Quantity)
+						<td><button onclick="cancelOrder('#{item.Exchange}', '#{item.OrderUuid}', 'bittrex')"> Cancel</button>
+							//<button onclick="updateOrder('#{item.Exchange}', '#{item.OrderUuid}', 'bittrex')"> Update</button>
+						</td>
+			</table>
+
+			h2 List coin
+			<table data-toggle="table" data-sort-name="amount" data-sort-order="desc">
+				<thead>
+					<tr>
+						<th data-field="pair" data-sortable="true"> Coin</th>
+						<th data-field="amount" data-sortable="true">Balance</th>
+						<th data-field="amount">Available</th>
+						<th>Trading</th>
+						<th>Price Buy/Sell</th>
+						<th>Amount</th>
+						<th>Stoploss</th>
+						<th>Action</th>
+					</tr>
+				</thead>
+				tbody
+					each item, index in balance
+						tr
+						td=item.Currency
+						td=item.Balance
+						td=item.Available
+						<td>
+							<input type="radio" onclick="enableStoploss('#{item.Currency}')" name="#{item.Currency}tradecb" value="BTC-#{item.Currency}"> BTC
+							<input type="radio" onclick="enableStoploss('#{item.Currency}')" name="#{item.Currency}tradecb" value="BTC-#{item.Currency}"> ETH
+						</td>
+						td
+							input(type='text' name=item.Currency+'buyPrice' id=item.Currency+'buyPrice' value=item.buyPrice)
+						td
+							input(type='text' name=item.Currency+'SlAmount' id=item.Currency+'SlAmount' disabled)
+						td
+							input(type='text' name=item.Currency+'SlPercent' id=item.Currency+'SlPercent' disabled)
+						td
+							<button name="#{item.Currency}startAuto" id="#{item.Currency}startAuto" onclick="autoTrade('#{item.Currency}', 'bittrex')")> Autotrade </button>
+							<button name="#{item.Currency}sellLimit" id="#{item.Currency}sellLimit" onclick="sellLimit('#{item.Currency}', 'bittrex')")> Sell </button>
+			</table>
+			</div>
+		</div>
+	</div>

@@ -9,18 +9,8 @@
 	   
 
 	});
-
-	function unsubcribe(pair) {
-		$.ajax({
-		  method: "POST",
-		  url: "/bot/unsubcribe",
-		  data: { pair: pair}
-		}).done(function( msg ) {
-			alert( "Result: " + msg );
-		  });
-	}
 	
-	function autoTrade(coin) {
+	function autoTrade(coin, exchange) {
 		let percentStopLoss = $('input[id="'+coin+'SlPercent"][type="text"]').val();
 		let amountStopLoss = $('input[id="'+coin+'SlAmount"][type="text"]').val();
 		let pairCoin = $('input[name="'+coin+'tradecb"][type="radio"]:checked').val();
@@ -38,9 +28,10 @@
 			alert("Số lượng muốn trade phải là kiểu số");
 			return;
 		}
+		let urlExchange = exchange === 'bittrex' ? '/bot/bittrex/autotrade' : '/bot/binance/autotrade';
 		$.ajax({
 		  method: "POST",
-		  url: "/bot/autotrade",
+		  url: urlExchange,
 		  data: { coin: coin, percentStopLoss: percentStopLoss, pair: pairCoin, amountStopLoss: amountStopLoss, buyPrice: buyPrice}
 		}).done(function( msg ) {
 			if(msg === 'OK') {
@@ -51,7 +42,7 @@
 		  });
 	}
 	
-	function sellLimit(coin) {
+	function sellLimit(coin, exchange) {
 		let amount = $('input[id="'+coin+'SlAmount"][type="text"]').val();
 		let pairCoin = $('input[name="'+coin+'tradecb"][type="radio"]:checked').val();
 		let sellPrice = $('input[id="'+coin+'buyPrice"][type="text"]').val();
@@ -61,9 +52,10 @@
 			alert("Số lượng muốn trade phải là kiểu số");
 			return;
 		}
+		let urlExchange = exchange === 'bittrex' ? '/bot/bittrex/selllimit' : '/bot/binance/selllimit';
 		$.ajax({
 		  method: "POST",
-		  url: "/bot/selllimit",
+		  url: urlExchange,
 		  data: { pair: pairCoin, amount: amount, sellPrice: sellPrice}
 		}).done(function( msg ) {
 			if(msg === 'OK') {
@@ -74,15 +66,12 @@
 		  });
 	}
 	
-	function cancelOrder(pair, orderId) {
+	function cancelOrder(pair, orderId, exchange) {
 
-		if(orderId == '' || isNaN(orderId)){
-			alert("Orderid phải là kiểu số");
-			return;
-		}
+		let urlExchange = exchange === 'bittrex' ? '/bot/bittrex/order/cancel' : '/bot/binance/order/cancel';
 		$.ajax({
 		  method: "POST",
-		  url: "/bot/order/cancel",
+		  url: urlExchange,
 		  data: { pair: pair, orderId: orderId}
 		}).done(function( msg ) {
 			if(msg === 'OK') {
@@ -93,7 +82,7 @@
 		  });
 	}
 	
-	function updateOrder(pair, orderId) {
+	function updateOrder(pair, orderId, exchange) {
 
 		var stopPrice = $('input[name="updateSl'+coin+'"][type="text"]').val();
 		var amount = $('input[name="amountUpdateSl'+coin+'"][type="hidden"]').val();
@@ -105,6 +94,7 @@
 		if(totalOrder < 0.001) {
 			alert('Giá trị quy ra BTC/ETH quá thấp. Tổng giá trị quy ra BTC/ETH phải 0.001 BTC/ETH. Hiện tại đang là ' + totalOrder + ' BTC/ETH');
 		}
+		let urlExchange = exchange === 'bittrex' ? '/bot/bittrex/order/update' : '/bot/binance/order/update';
 		$.ajax({
 		  method: "POST",
 		  url: "/bot/order/update",
@@ -124,30 +114,6 @@
 		$('input[name="'+pair+'manualPrice"][type="checkbox"]').removeAttr("disabled");
 		$('input[name="'+pair+'sl"][type="text"]').focus();
 	}
-	var connection = new WebSocket("ws://localhost:3000/bot/socket");
-
-	connection.onopen = function () {
-	console.log("connected");
-	connection.send("connected");
-	};
-
-	connection.onclose = function () {
-	console.log("Closed");
-
-	};
-
-	connection.onerror = function (error) {
-	  console.log("Error", error);
-	};
-
-	connection.onmessage = function (message) {
-
-	var dataObject = JSON.parse(message.data);
-	console.log(dataObject);
-	$("." + dataObject.pair).each(function (index, element) {
-		$(this).text(dataObject.price)
-	});
-	//document.getElementByClassName(dataObject.pair).innerHTML = dataObject.price;
-	};
+	
 	
 	
