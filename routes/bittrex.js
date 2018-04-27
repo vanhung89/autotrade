@@ -12,17 +12,16 @@ var websocket;
 var listCoin = {};
 var listStoplossCoin = new Map();
 var order;
+var listSubscribeCoin = [];
 /* GET home page. */
 router.get('/', async function(req, res, next) {
 
 	let listCoinTmp = await getBalance();
-
-	
 	order = await getOpenOrders();
 
 	if(order.length > 0) {
 		order.forEach((item, index) => {
-			item.Limit = Number.parseFloat(item.Limit).toFixed(8)
+			item.Limit = Number.parseFloat(item.Limit).toFixed(8);
 			subcribeCoin(item.Exchange);
 		});
 
@@ -150,13 +149,13 @@ router.post('/autotrade', async function(req, res, next) {
 					}, function( data, err ) {
 					  if(err) {
 							res.send(err);
-							console.error(err)
+							console.error(err);
 							return;
 						}
 						
 						console.log("order id: " + data.result.OrderId);
 						listStoplossCoin.set(pair,{percentStopLoss: req.body.percentStopLoss, buyPrice: req.body.buyPrice, orderId:  data.result.OrderId, amount: quantity});
-						updateWebsocket();
+						subcribeCoin(pair);
 						res.send("OK");
 					});
 	} else {
@@ -253,6 +252,7 @@ function getBalance() {
 	return new Promise(resolve => {
 		bittrex.getbalances( function( data, err ) {
 		  if(err) {
+		  	console.log(err);
 		  	resolve('');
 		  } else {
 		  	let result = [];
@@ -311,31 +311,42 @@ function getLatestBuyOrder(pair) {
 
 
 function subcribeCoin(pair) {
+	if(listSubscribeCoin.indexOf(pair) == -1) {
+		listSubscribeCoin.push(pair);
+		console.log('New subscribe: ', pair);
+		console.log('List new subscribe: ', listSubscribeCoin);
+	}
+	bittrex.websockets.reset();
+	wsSubscribe(listSubscribeCoin);
+}
 
-	bittrex.websockets.subscribe([pair], function(data, client) {
+function wsSubscribe(coinArray) {
+	bittrex.websockets.subscribe(coinArray, function(data, client) {
 	  if (data.M === 'updateExchangeState') {
 	    data.A.forEach(function(data_for) {
-	      console.log('Market Update for '+ data_for.MarketName, data_for.Fills);
+	      
 	      const last = getCurrentPrice(data_for.Fills);
+	      console.log('Last price of' + data_for.MarketName, last);
 	      if(last != 0) {
-	      	if(typeof listStoplossCoin.get(pair) != 'undefined') {
-			let stoplossCoin = listStoplossCoin.get(pair);
-			
+	      	console.log('listStoplossCoin: ', listStoplossCoin);
+	      	if(typeof listStoplossCoin.get(data_for.MarketName) != 'undefined') {
+			let stoplossCoin = listStoplossCoin.get(data_for.MarketName);
+			console.log('StoplossCoin: ', stoplossCoin);
 			let currentPercent = (last - stoplossCoin.buyPrice)/stoplossCoin.buyPrice*100;
 			let percentStopLossRatio = Number(stoplossCoin.percentStopLoss) + 5;
-			console.log('Current percent' + pair + ': ' + currentPercent);
-			console.log('Stoploss percent' + pair + ': ' + percentStopLossRatio);
+			console.log('Current percent' + data_for.MarketName + ': ' + currentPercent);
+			console.log('Stoploss percent' + data_for.MarketName + ': ' + percentStopLossRatio);
 			if(currentPercent >= percentStopLossRatio) {
 				bittrex.cancel({uuid:stoplossCoin.orderId}, (data, error) => {
 					if(error) {
-						console.log(error.body);
+						console.log(error);
 					}
-				  console.log(pair+" cancel response:", data);
+				  console.log(data_for.MarketName+" cancel response:", data);
 					let quantity = stoplossCoin.amount;
 					let price = last * (100 - stoplossCoin.percentStopLoss)/100;
 					console.log('New price: ' + price);
 					bittrex.tradesell({
-					  MarketName: pair,
+					  MarketName: data_for.MarketName,
 					  OrderType: 'LIMIT',
 					  Quantity: quantity,
 					  Rate: price.toFixed(8),
@@ -343,19 +354,19 @@ function subcribeCoin(pair) {
 					  ConditionType: 'LESS_THAN', // supported options are 'NONE', 'GREATER_THAN', 'LESS_THAN'
 					  Target: price.toFixed(8) // used in conjunction with ConditionType
 					}, function( data, err ) {
-					  if(error) {
-							console.log(error.body);
+					  if(err) {
+							console.log(err);
 						}
 						let newRatio = (100 + Number(stoplossCoin.percentStopLoss))/100;
-						listStoplossCoin.get(pair).buyPrice = stoplossCoin.buyPrice * newRatio;
-						listStoplossCoin.get(pair).orderId = data.result.OrderId;
-						console.log(pair+" Stoploss order response:", data);
+						listStoplossCoin.get(data_for.MarketName).buyPrice = stoplossCoin.buyPrice * newRatio;
+						listStoplossCoin.get(data_for.MarketName).orderId = data.result.OrderId;
+						console.log(data_for.MarketName+" Stoploss order response:", data);
 					});
 				});
 			}
 		}
 		
-			let json = JSON.stringify({ type:'message', pair: pair, price:last });
+			let json = JSON.stringify({ type:'Message from Bittrex websocket', pair: data_for.MarketName, price:last });
 			if(websocket) {
 				websocket.send(json);
 			}
@@ -363,13 +374,15 @@ function subcribeCoin(pair) {
 	      
 	    });
 	  }
-	});
+	}, true);
 }
 
 function getCurrentPrice(data) {
 	let max = 0;
 	data.forEach((item, index) => {
+		console.log('Loop to get current price');
 		if(item.OrderType === 'BUY' && item.Rate > max) {
+			console.log('Find out an item:', item.Rate);
 			max = item.Rate;
 		} 
 	});
@@ -377,19 +390,16 @@ function getCurrentPrice(data) {
 }
 
 
-function updateWebsocket() {
+function unSubcribeCoin(pair) {
 	
-	if(order.length > 0) {
-		order.forEach((item, index) => {
-			console.log("Subcribe coin:" + item.Exchange)
-			subcribeCoin(item.Exchange);
-		});
+	const index = listSubscribeCoin.indexOf(pair);
+	if(index > -1) {
+		listSubscribeCoin.splice(index,1);
+		console.log('Unsubscribe:' ,pair)
+		console.log('List subscribe:' ,listSubscribeCoin)
 	}
-	
-	listStoplossCoin.forEach((item, index) =>{
-		console.log("Subcribe coin in listStoplossCoin:" + index)
-			subcribeCoin(index);
-	});
+	bittrex.websockets.reset();
+	wsSubscribe(listSubscribeCoin);
 
 }
 module.exports = router;

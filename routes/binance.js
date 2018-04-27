@@ -293,7 +293,7 @@ function subcribeCoin(pair) {
 			}
 		}
 		
-		let json = JSON.stringify({ type:'message', pair: pair, price:last });
+		let json = JSON.stringify({ type:'Message from Binance websocket', pair: pair, price:last });
 		if(websocket) {
 			websocket.send(json);
 		}

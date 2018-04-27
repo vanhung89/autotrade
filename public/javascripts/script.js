@@ -114,6 +114,57 @@
 		$('input[name="'+pair+'manualPrice"][type="checkbox"]').removeAttr("disabled");
 		$('input[name="'+pair+'sl"][type="text"]').focus();
 	}
+
+	var connectionBinance = new WebSocket("ws://localhost:3000/bot/binance/socket");
+
+	connectionBinance.onopen = function () {
+	console.log("Ws Binance connected");
+	connectionBinance.send("Ws Binance connected");
+	};
+
+	connectionBinance.onclose = function () {
+	console.log("Ws Binance Closed");
+
+	};
+
+	connectionBinance.onerror = function (error) {
+	  console.log("Ws Binance Error", error);
+	};
+
+	connectionBinance.onmessage = function (message) {
+
+	var dataObjectBinance = JSON.parse(message.data);
+	console.log(dataObjectBinance);
+	$("." + dataObjectBinance.pair).each(function (index, element) {
+		$(this).text(dataObjectBinance.price)
+	});
+	};
+	//Ws Bittrex
+	var connectionBittrex = new WebSocket("ws://localhost:3000/bot/bittrex/socket");
+
+	connectionBittrex.onopen = function () {
+	console.log("Ws Bittrex connected");
+	connectionBittrex.send("Ws Bittrex connected");
+	};
+
+	connectionBittrex.onclose = function () {
+	console.log("Ws Bittrex Closed");
+
+	};
+
+	connectionBittrex.onerror = function (error) {
+	  console.log("Ws Bittrex Error", error);
+	};
+
+	connectionBittrex.onmessage = function (message) {
+
+	var dataObjectBittrex = JSON.parse(message.data);
+	console.log(dataObjectBittrex);
+	$("." + dataObjectBittrex.pair).each(function (index, element) {
+		$(this).text(dataObjectBittrex.price)
+	});
+	};
+
 	
 	
 	
